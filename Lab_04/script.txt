@@ -1,0 +1,44 @@
+sbcl --load quicklisp.lisp
+
+;; Load the library CL-CSV. We use it to read the CSV file and
+;; transform its content into a list of lists
+(ql:quickload "cl-csv")
+
+;; Read the CSV file and store it in a variable as a list of lists
+(defparameter *input-table* (cl-csv:read-csv #P"results1.csv"))
+
+;; We only need the table headers from the first row from 'template.csv'
+;; so pull only that and store it in a variable
+(defparameter *cols-to-keep-by-name*
+  (car (cl-csv:read-csv #P"columns.csv")))
+
+;; Get the table header from our original CSV (stored in the variable *input-table*)
+;; and store it in *header-input-table*
+(defparameter *header-input-table* (car *input-table*))
+
+;; Define a function that tells us the position of a particular column name.
+;; We feed it the name of a column eg. "Size",
+;; then it tells us at which position that particular column is
+(defun get-col-position (col-name)
+  "Get the position number of a column by the column name."
+  (position col-name *header-input-table* :test #'string=))
+
+;; When we map this function to each column name in our list of column headers,
+;; we're getting a list of the positions of the columns that we want to keep.
+;; We store that list in the variable *cols-to-keep-by-position*
+(defparameter *cols-to-keep-by-position*
+  (mapcar #'get-col-position *cols-to-keep-by-name*))
+
+;; Filter the input row
+(defun create-output-row (input-row)
+  "Filter a row of the input-table to create a row for the output table."
+  (loop for x in *cols-to-keep-by-position* 
+        collect (nth x input-row)))
+
+;; Create the output-table; take the function above
+;; and map it onto each element of the list *input-table*
+(defparameter *output-table*
+  (mapcar #'create-output-row *input-table*))
+
+;; Write the new CSV
+(cl-csv:write-csv *output-table* :stream #P"new.csv")
